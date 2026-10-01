@@ -1,5 +1,48 @@
+# ---------- 构建产物 ----------
 bin/
 obj/
-*.user
-.vs/
 publish/
+artifacts/
+*.dll
+*.exe
+*.pdb
+
+# ---------- Visual Studio / IDE ----------
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.idea/
+*.DotSettings.user
+
+# ---------- 测试与覆盖率 ----------
+TestResults/
+[Tt]est[Rr]esult*/
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+
+# ---------- NuGet ----------
+*.nupkg
+*.snupkg
+packages/
+
+# ---------- 临时验证产物（开发过程中的脚本/截图/日志） ----------
+tmp-*
+*.tmp
+~$*
+*-first-run.png
+*-live.png
+*.log
+*.out
+
+# ---------- 发布压缩包 ----------
+*.zip
+
+# ---------- 操作系统 ----------
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.DS_Store
