@@ -50,11 +50,14 @@ macOS 有 Alfred、Windows 有 PowerToys Run，但我想要一个**更小、更�
 
 ### 方式一：下载发布包（推荐）
 
-1. 到 [Releases](../../releases) 页面下载最新版本的 `openAlfred.zip`，解压到任意目录
-2. 双击 `openAlfred.exe` 启动 —— 完成 ✅
-3. 按 `Alt + Space` 唤起，开始使用
+到 [Releases](../../releases) 页面下载最新版本，解压到任意目录，双击 `openAlfred.exe` 启动，按 `Alt + Space` 开始使用：
 
-> openAlfred 依赖 **.NET 8 Desktop Runtime**。若系统未安装，[下载它](https://dotnet.microsoft.com/download/dotnet/8.0)（若使用自包含版 `*-self-contained.zip` 则无需安装）。
+| 文件 | 体积 | 适用场景 |
+|---|---|---|
+| `openAlfred-x.y.z-win-x64-selfcontained.zip` | ≈ 65 MB | **免装 .NET，下载即用**（推荐普通用户） |
+| `openAlfred-x.y.z-win-x64.zip` | ≈ 2 MB | 已安装 .NET 8 Desktop Runtime 的用户 |
+
+> 框架依赖版若提示缺运行时，[下载 .NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) 即可。
 
 ### 方式二：从源码构建
 
@@ -70,9 +73,10 @@ dotnet run --project src/OpenAlfred.App
 # 发布为独立 exe（框架依赖，体积小）
 dotnet publish src/OpenAlfred.App -c Release -r win-x64 --self-contained false -o publish
 
-# 发布为自包含单文件（免装 .NET，体积较大）
-dotnet publish src/OpenAlfred.App -c Release -r win-x64 --self-contained true \
-  -p:PublishSingleFile=true -o publish
+# 发布自包含单文件（免装 .NET，下载即用，约 65 MB）
+dotnet publish src/OpenAlfred.App -c Release -r win-x64 --self-contained true `
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+  -p:EnableCompressionInSingleFile=true -o artifacts/selfcontained
 
 # 运行测试
 dotnet test
