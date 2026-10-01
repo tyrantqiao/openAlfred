@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>openAlfred 设计稿 · iOS 简约风</title>
+<style>
+  :root {
+    --accent: #007AFF;
+    --text-primary: #1c1c1e;
+    --text-secondary: #8e8e93;
+    --text-tertiary: #c7c7cc;
+    --bg-card: rgba(255, 255, 255, 0.82);
+    --bg-card-solid: #ffffff;
+    --bg-input: rgba(118, 118, 128, 0.12);
+    --separator: rgba(60, 60, 67, 0.12);
+    --pill: rgba(120, 120, 128, 0.16);
+    --radius-window: 18px;
+    --radius-card: 12px;
+    --radius-pill: 999px;
+    --shadow-window: 0 24px 64px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.12);
+    --font-ui: "Segoe UI Variable Display", "Segoe UI", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-mono: "Cascadia Mono", "Consolas", "SF Mono", monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-ui);
+    background: #1a1b2e;
+    color: #f2f2f7;
+    padding: 48px 24px 96px;
+  }
+
+  .page-header { max-width: 1120px; margin: 0 auto 48px; }
+  .page-header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .page-header p { color: rgba(235,235,245,0.6); margin-top: 8px; font-size: 15px; line-height: 1.6; }
+
+  .scene { max-width: 1120px; margin: 0 auto 72px; }
+  .scene > h2 {
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: rgba(235,235,245,0.5); margin-bottom: 20px;
+  }
+  .scene > h2 .num { color: var(--accent); margin-right: 8px; }
+
+  /* 模拟桌面壁纸 */
+  .desktop {
+    height: 560px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 10%, #4b6cb7 0%, transparent 55%),
+      radial-gradient(ellipse 70% 70% at 85% 30%, #8a5fbf 0%, transparent 50%),
+      radial-gradient(ellipse 90% 60% at 50% 100%, #2c3e6b 0%, transparent 60%),
+      linear-gradient(160deg, #35407a 0%, #232a54 50%, #1b2044 100%);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .desktop::after { /* 任务栏示意 */
+    content: "";
+    position: absolute; left: 0; right: 0; bottom: 0; height: 48px;
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(24px);
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+
+  /* 主窗口：Mica 毛玻璃 + 大圆角 + Spotlight 式上方 1/3 居中 */
+  .launcher {
+    width: 640px;
+    margin-top: 88px;
+    background: var(--bg-card);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border-radius: var(--radius-window);
+    border: 1px solid rgba(255,255,255,0.35);
+    box-shadow: var(--shadow-window);
+    overflow: hidden;
+    color: var(--text-primary);
+  }
+
+  .search-box {
+    display: flex; align-items: center; gap: 12px;
+    padding: 20px 22px;
+  }
+  .search-box .icon { width: 22px; height: 22px; flex: none; color: var(--text-secondary); }
+  .search-input {
+    flex: 1; font-size: 21px; font-weight: 400; letter-spacing: -0.01em;
+    color: var(--text-primary); white-space: nowrap; overflow: hidden;
+  }
+  .search-input .placeholder { color: var(--text-tertiary); }
+  .caret {
+    display: inline-block; width: 2px; height: 24px; background: var(--accent);
+    vertical-align: text-bottom; margin-left: 1px; animation: blink 1.06s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .divider { height: 1px; background: var(--separator); }
+
+  /* 底部关键词提示条（空状态） */
+  .hint-bar { display: flex; gap: 8px; padding: 14px 22px; flex-wrap: wrap; }
+  .hint-bar .label {
+    font-size: 12px; color: var(--text-secondary); align-self: center; margin-right: 4px;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--pill); border-radius: var(--radius-pill);
+    padding: 6px 12px; font-size: 12.5px; color: #3a3a3c; font-weight: 500;
+  }
+  .pill .glyph { font-family: var(--font-mono); color: var(--accent); font-weight: 600; }
+
+  .footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 22px; font-size: 12px; color: var(--text-secondary);
+    background: rgba(245,245,247,0.55);
+  }
+  .kbd {
+    font-family: var(--font-ui); font-size: 11px;
+    background: #fff; border: 1px solid rgba(60,60,67,0.16);
+    border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; margin-right: 4px;
+    color: #3a3a3c;
+  }
+
+  /* 结果列表通用 */
+  .results { padding: 8px 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+  .result {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 14px; border-radius: var(--radius-card);
+  }
+  .result.selected { background: rgba(0, 122, 255, 0.10); }
+  .result.selected .title { color: var(--accent); }
+  .result .ricon {
+    width: 38px; height: 38px; border-radius: 10px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(145deg, #4da2ff, #007aff); color: #fff;
+  }
+  .result .ricon svg { width: 20px; height: 20px; }
+  .result .ricon.neutral { background: var(--pill); color: #3a3a3c; }
+  .result .body { flex: 1; min-width: 0; }
+  .result .title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .result .subtitle {
+    font-size: 12.5px; color: var(--text-secondary); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .result .meta { font-size: 11.5px; color: var(--text-secondary); text-align: right; flex: none; line-height: 1.5; }
+
+  /* 计算器场景 */
+  .calc-hero { display: flex; align-items: center; gap: 16px; padding: 16px 14px; }
+  .calc-hero .expr { font-family: var(--font-mono); font-size: 13px; color: var(--text-secondary); }
+  .calc-hero .value { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .calc-hero .value .exact-hint { font-size: 12px; font-weight: 500; color: var(--text-secondary); letter-spacing: 0; }
+
+  /* JSON 场景 */
+  .json-pane {
+    margin: 8px 10px 12px; border-radius: var(--radius-card);
+    background: #f7f7fa; border: 1px solid var(--separator);
+  }
+  .json-toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; border-bottom: 1px solid var(--separator);
+  }
+  .json-toolbar .status { font-size: 12.5px; color: #34c759; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .json-toolbar .status .dot { width: 8px; height: 8px; border-radius: 50%; background: #34c759; }
+  .actions { display: flex; gap: 8px; }
+  .btn {
+    font-size: 12.5px; font-weight: 600; padding: 5px 12px;
+    border-radius: var(--radius-pill); cursor: default;
+  }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.plain { background: var(--pill); color: #3a3a3c; }
+  .json-code {
+    font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7;
+    padding: 14px 16px; color: #1c1c1e; overflow: hidden;
+  }
+  .json-code .indent { color: transparent; }
+  .tk-key { color: #0b4f9e; }
+  .tk-str { color: #97389b; }
+  .tk-num { color: #1967b8; }
+  .tk-bool { color: #c25700; }
+  .tk-punc { color: #8e8e93; }
+
+  /* 时间场景 */
+  .time-hero { padding: 18px 14px 8px; display: flex; align-items: baseline; gap: 14px; }
+  .time-hero .clock { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+  .time-hero .zone { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
+
+  /* 场景标注 */
+  .notes { max-width: 1120px; margin: 16px auto 0; }
+  .notes li {
+    list-style: none; font-size: 13.5px; color: rgba(235,235,245,0.55);
+    line-height: 1.8; padding-left: 18px; position: relative;
+  }
+  .notes li::before { content: "→"; position: absolute; left: 0; color: var(--accent); }
+
+  /* 深色模式对照 */
+  .desktop.dark { background: linear-gradient(160deg, #101014 0%, #1c1c2e 60%, #0c0c10 100%); }
+  .launcher.dark {
+    --bg-card: rgba(38, 38, 46, 0.86);
+    --text-primary: #f2f2f7;
+    --text-secondary: #98989f;
+    --text-tertiary: #636366;
+    --separator: rgba(255,255,255,0.10);
+    --pill: rgba(120,120,128,0.32);
+    border-color: rgba(255,255,255,0.14);
+    color: #f2f2f7;
+  }
+  .launcher.dark .footer { background: rgba(50,50,58,0.5); }
+  .launcher.dark .kbd { background: #48484f; color: #e5e5ea; border-color: #5a5a62; }
+  .launcher.dark .result.selected { background: rgba(10, 132, 255, 0.22); }
+  .launcher.dark .result.selected .title { color: #409cff; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>openAlfred · 设计稿</h1>
+  <p>参考 Alfred 的单框唤起交互 + iOS 简约视觉语言：Mica 毛玻璃、18px 大圆角、8pt 栅格、系统蓝 #007AFF 唯一强调色。以下 6 个场景为高保真原型，样式令牌与 docs/design.md 一一对应。</p>
+</header>
+
+<!-- 场景 1：主界面 / 空状态 -->
+<section class="scene">
+  <h2><span class="num">01</span>主界面 · 空状态（Alt+Space 唤起）</h2>
+  <div class="desktop">
+    <div class="launcher">
+      <div class="search-box">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <div class="search-input"><span class="placeholder">输入关键词或算式…</span><span class="caret"></span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="hint-bar">
+        <span class="label">功能</span>
+        <span class="pill"><span class="glyph">1+2</span> 计算器 · 直接输入算式</span>
+        <span class="pill"><span class="glyph">clip</span> 剪贴板历史</span>
+        <span class="pill"><span class="glyph">file</span> 检索文件</span>
+        <span class="pill"><span class="glyph">json</span> JSON 转换</span>
+        <span class="pill"><span class="glyph">time</span> 当前时间</span>
+      </div>
+      <div class="footer"><span><span class="kbd">↑</span><span class="kbd">↓</span> 选择 · <span class="kbd">Enter</span> 执行 · <span class="kbd">Tab</span> 补全</span><span><span class="kbd">Esc</span> 关闭</span></div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>窗口固定在屏幕上方约 1/3 处水平居中（Spotlight 式），宽 640px，失焦自动隐藏</li>
+    <li>空状态只保留搜索框与功能提示条，无任何干扰元素</li>
+  </ul>
+</section>
+
+<!-- 场景 2：计算器 -->
+<section class="scene">
+  <h2><span class="num">02</span>计算器 · 输入即算</h2>
+  <div class="desktop">
+    <div class="launcher">
+      <div class="search-box">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <div class="search-input">128*3+64<span class="caret"></span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="results">
+        <div class="result selected calc-hero">
+          <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01"/></svg></div>
+          <div class="body">
+            <div class="value">448</div>
+            <div class="subtitle" style="font-family:var(--font-mono)">128 × 3 + 64 = 448</div>
+          </div>
+          <div class="meta"><span class="kbd">Enter</span> 复制结果</div>
+        </div>
+        <div class="result">
+          <div class="ricon neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div>
+          <div class="body"><div class="title">≈ 4.48 × 10²</div><div class="subtitle">科学计数法表示</div></div>
+        </div>
+      </div>
+      <div class="footer"><span>纯算式自动进入计算器，无需关键词</span><span><span class="kbd">Ctrl</span>+<span class="kbd">C</span> 快捷复制</span></div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>首条结果为大号结果数字（32px 粗体、系统蓝、等宽数字），算式回显在下方灰色小字</li>
+    <li>支持四则运算、括号、幂、取模、百分号、常用函数；解析失败时整条结果不出现（静默降级为文件搜索）</li>
+  </ul>
+</section>
+
+<!-- 场景 3：剪贴板历史 -->
+<section class="scene">
+  <h2><span class="num">03</span>剪贴板历史 · <span style="text-transform:none">clip</span></h2>
+  <div class="desktop">
+    <div class="launcher">
+      <div class="search-box">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="7" y="4" width="10" height="16" rx="2"/><path d="M10 4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1h-4z"/></svg>
+        <div class="search-input">clip 邮件<span class="caret"></span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="results">
+        <div class="result selected">
+          <div class="ricon neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="m5 8 7 5 7-5"/></svg></div>
+          <div class="body"><div class="title">尊敬的客户，您的订单已发货…</div><div class="subtitle">文本 · 邮件正文模板片段</div></div>
+          <div class="meta">2 分钟前<br><span class="kbd">Enter</span> 粘贴</div>
+        </div>
+        <div class="result">
+          <div class="ricon neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9.5" cy="10" r="1.5"/><path d="m6 17 4.5-4.5L14 16l2-2 4 3.5"/></svg></div>
+          <div class="body"><div class="title">邮件签名图.png</div><div class="subtitle">图片 · 128 × 64</div></div>
+          <div class="meta">今天 14:02</div>
+        </div>
+        <div class="result">
+          <div class="ricon neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="m5 8 7 5 7-5"/></svg></div>
+          <div class="body"><div class="title">qiaoxin.huang@example.com</div><div class="subtitle">文本 · 邮箱地址</div></div>
+          <div class="meta">昨天 18:31</div>
+        </div>
+      </div>
+      <div class="footer"><span>共 47 条记录 · 保留最近 200 条</span><span><span class="kbd">Ctrl</span>+<span class="kbd">Backspace</span> 删除选中</span></div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>clip 关键词进入历史列表，关键词后内容作为过滤条件；首条默认为最近一条</li>
+    <li>Enter 将选中内容写回剪贴板并模拟 Ctrl+V 粘贴回原焦点窗口</li>
+  </ul>
+</section>
+
+<!-- 场景 4：JSON 转换 -->
+<section class="scene">
+  <h2><span class="num">04</span>JSON 转换 · <span style="text-transform:none">json</span></h2>
+  <div class="desktop">
+    <div class="launcher">
+      <div class="search-box">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 4c-2 0-2 3-2 4s0 4-2 4c2 0 2 3 2 4s0 4 2 4M16 4c2 0 2 3 2 4s0 4 2 4c-2 0-2 3-2 4s0 4-2 4"/></svg>
+        <div class="search-input">json {"name":"openAlfred","ver":1,"beta":true}<span class="caret"></span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="json-pane">
+        <div class="json-toolbar">
+          <div class="status"><span class="dot"></span>合法 JSON · 3 个字段 · 45 字符</div>
+          <div class="actions"><span class="btn plain">压缩</span><span class="btn primary">复制格式化</span></div>
+        </div>
+        <pre class="json-code"><span class="tk-punc">{</span>
+  <span class="tk-key">"name"</span><span class="tk-punc">:</span> <span class="tk-str">"openAlfred"</span><span class="tk-punc">,</span>
+  <span class="tk-key">"ver"</span><span class="tk-punc">:</span> <span class="tk-num">1</span><span class="tk-punc">,</span>
+  <span class="tk-key">"beta"</span><span class="tk-punc">:</span> <span class="tk-bool">true</span>
+<span class="tk-punc">}</span></pre>
+      </div>
+      <div class="footer"><span>语法错误时红字提示出错行列并定位上下文</span><span><span class="kbd">Enter</span> 复制</span></div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>格式化视图采用语法高亮：key 深蓝、字符串紫、数字蓝、布尔橙，等宽字体 Cascadia Mono</li>
+    <li>超长内容折叠展示（前 40 行），提供「展开 / 滚动查看」入口</li>
+  </ul>
+</section>
+
+<!-- 场景 5：文件检索 + 时间查询 -->
+<section class="scene">
+  <h2><span class="num">05</span>文件检索 <span style="text-transform:none">file</span> / 时间查询 <span style="text-transform:none">time</span></h2>
+  <div class="desktop">
+    <div class="launcher">
+      <div class="search-box">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
+        <div class="search-input">file 简历<span class="caret"></span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="results">
+        <div class="result selected">
+          <div class="ricon neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg></div>
+          <div class="body"><div class="title">黄乔鑫_JAVA工程师.pdf</div><div class="subtitle">E:\docouments\coding\resume</div></div>
+          <div class="meta">3 天前 · 218 KB<br><span class="kbd">Ctrl</span>+<span class="kbd">Enter</span> 定位</div>
+        </div>
+        <div class="result">
+          <div class="ricon neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg></div>
+          <div class="body"><div class="title">resume2026.tex</div><div class="subtitle">E:\docouments\coding\resume</div></div>
+          <div class="meta">上周 · 12 KB</div>
+        </div>
+        <div class="result">
+          <div class="ricon neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg></div>
+          <div class="body"><div class="title">resume（文件夹）</div><div class="subtitle">E:\docouments\coding</div></div>
+          <div class="meta">—</div>
+        </div>
+      </div>
+      <div class="footer"><span>索引范围：用户目录 / 桌面 / 文档 / 下载 · 后台增量更新</span><span>模糊匹配打分排序</span></div>
+    </div>
+  </div>
+  <ul class="notes" style="margin-bottom:28px"></ul>
+  <div class="desktop">
+    <div class="launcher">
+      <div class="search-box">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+        <div class="search-input">time 东京<span class="caret"></span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="results">
+        <div class="result selected" style="align-items:flex-start">
+          <div class="ricon neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></div>
+          <div class="body">
+            <div class="time-hero" style="padding:0 0 6px"><span class="clock">21:14</span><span class="zone">东京 · UTC+9 · 快 1 小时</span></div>
+            <div class="subtitle">2026年10月1日 星期四 · 2026-10-01T21:14:32+09:00</div>
+          </div>
+          <div class="meta"><span class="kbd">Enter</span> 复制 ISO8601</div>
+        </div>
+      </div>
+      <div class="footer"><span>time 本机 / time &lt;城市&gt; 时区 / time +3d 相对时间</span><span></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 场景 6：深色模式 -->
+<section class="scene">
+  <h2><span class="num">06</span>深色模式 · 计算器</h2>
+  <div class="desktop dark">
+    <div class="launcher dark">
+      <div class="search-box">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <div class="search-input">(1024+512)/8<span class="caret"></span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="results">
+        <div class="result selected calc-hero">
+          <div class="ricon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01"/></svg></div>
+          <div class="body">
+            <div class="value" style="color:#409cff">192</div>
+            <div class="subtitle" style="font-family:var(--font-mono)">(1024 + 512) ÷ 8 = 192</div>
+          </div>
+          <div class="meta"><span class="kbd">Enter</span> 复制结果</div>
+        </div>
+      </div>
+      <div class="footer"><span>深浅色跟随系统，可手动锁定</span><span><span class="kbd">Esc</span> 关闭</span></div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li>深色模式：窗口底色 rgba(38,38,46,0.86)，强调色换为 iOS Dark Blue #409CFF，分隔线改为白色 10% 透明度</li>
+  </ul>
+</section>
+
+</body>
+</html>

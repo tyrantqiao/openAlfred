@@ -1,0 +1,28 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- openAlfred 浅色设计令牌（对应 docs/design.md 2.1） -->
+    <SolidColorBrush x:Key="OaAccentBrush" Color="#007AFF" />
+    <SolidColorBrush x:Key="OaTextPrimaryBrush" Color="#1C1C1E" />
+    <SolidColorBrush x:Key="OaTextSecondaryBrush" Color="#8E8E93" />
+    <SolidColorBrush x:Key="OaTextTertiaryBrush" Color="#C7C7CC" />
+    <SolidColorBrush x:Key="OaWindowBrush" Color="#D1FFFFFF" />
+    <SolidColorBrush x:Key="OaWindowBorderBrush" Color="#59FFFFFF" />
+    <SolidColorBrush x:Key="OaSelectedBrush" Color="#1A007AFF" />
+    <SolidColorBrush x:Key="OaHoverBrush" Color="#0D1C1C1E" />
+    <SolidColorBrush x:Key="OaSeparatorBrush" Color="#1E3C3C43" />
+    <SolidColorBrush x:Key="OaPillBrush" Color="#29787880" />
+    <SolidColorBrush x:Key="OaFooterBrush" Color="#8CF5F5F7" />
+    <SolidColorBrush x:Key="OaDangerBrush" Color="#FF3B30" />
+    <SolidColorBrush x:Key="OaSuccessBrush" Color="#34C759" />
+    <SolidColorBrush x:Key="OaPillTextBrush" Color="#3A3A3C" />
+
+    <!-- 关键词提示胶囊 -->
+    <Style x:Key="OaPillStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource OaPillBrush}" />
+        <Setter Property="CornerRadius" Value="999" />
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Margin" Value="0,0,8,8" />
+    </Style>
+
+</ResourceDictionary>
