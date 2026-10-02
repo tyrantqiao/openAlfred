@@ -9,8 +9,11 @@ namespace OpenAlfred.App.Services;
 public readonly record struct Hotkey(ModifierKeys Modifiers, Key Key)
 {
     public const string DefaultString = "Alt+Space";
+    /// <summary>一键打开剪贴板历史的默认组合键。</summary>
+    public const string ClipboardDefaultString = "Ctrl+Alt+V";
 
     public static Hotkey Default() => Parse(DefaultString);
+    public static Hotkey DefaultClipboard() => Parse(ClipboardDefaultString);
 
     /// <summary>从 "Ctrl+Alt+K" 之类的字符串解析；无法识别时回退默认。</summary>
     public static Hotkey Parse(string? value)

@@ -133,6 +133,9 @@ public partial class App : Application
         var openItem = new MenuItem { Header = "打开 openAlfred" };
         openItem.Click += (_, _) => _mainWindow?.ShowWindow();
 
+        var clipItem = new MenuItem { Header = "剪贴板历史" };
+        clipItem.Click += (_, _) => _mainWindow?.ShowClipboardHistory();
+
         var settingsItem = new MenuItem { Header = "设置…" };
         settingsItem.Click += (_, _) => ShowSettings();
 
@@ -143,6 +146,7 @@ public partial class App : Application
         exitItem.Click += (_, _) => Shutdown();
 
         menu.Items.Add(openItem);
+        menu.Items.Add(clipItem);
         menu.Items.Add(settingsItem);
         menu.Items.Add(new Separator());
         menu.Items.Add(clearItem);
@@ -161,11 +165,26 @@ public partial class App : Application
         return true;
     }
 
+    /// <summary>重新绑定剪贴板历史直达热键，成功后持久化。</summary>
+    public bool TryRebindClipboardHotkey(Hotkey hk)
+    {
+        if (_mainWindow?.ApplyClipboardHotkey(hk) != true) return false;
+        Settings.ClipboardHotkey = hk.ToString();
+        Settings.Save();
+        return true;
+    }
+
     /// <summary>录制新热键前挂起当前绑定，避免旧组合键拦截按键。</summary>
     public void SuspendHotkey() => _mainWindow?.SuspendHotkey();
 
+    /// <summary>录制剪贴板直达热键前挂起当前绑定。</summary>
+    public void SuspendClipboardHotkey() => _mainWindow?.SuspendClipboardHotkey();
+
     /// <summary>退出录制时按设置恢复绑定。</summary>
     public void ResumeHotkey() => _mainWindow?.ApplyHotkey(Hotkey.Parse(Settings.Hotkey));
+
+    /// <summary>退出剪贴板直达热键录制时按设置恢复绑定。</summary>
+    public void ResumeClipboardHotkey() => _mainWindow?.ApplyClipboardHotkey(Hotkey.Parse(Settings.ClipboardHotkey));
 
     public void ShowSettings()
     {

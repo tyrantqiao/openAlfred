@@ -1,4 +1,5 @@
 using System.IO;
+using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
@@ -32,6 +33,8 @@ public sealed class ClipboardMonitor
     {
         var source = HwndSource.FromHwnd(hwnd);
         source?.AddHook(WndProc);
+        // 必须向系统注册剪贴板监听，否则永远收不到 WM_CLIPBOARDUPDATE
+        NativeMethods.AddClipboardFormatListener(hwnd);
     }
 
     private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
@@ -63,12 +66,17 @@ public sealed class ClipboardMonitor
     {
         if (Clipboard.GetImage() is not BitmapSource image) return;
 
-        Directory.CreateDirectory(_imageDir);
-        var path = Path.Combine(_imageDir, $"{DateTime.Now:yyyyMMdd-HHmmss-fff}.png");
+        // 先编码到内存，计算内容 SHA256 用于重复识别，再落盘
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(image));
-        using var fileStream = File.Create(path);
-        encoder.Save(fileStream);
-        _store.AddImage(path);
+        using var buffer = new MemoryStream();
+        encoder.Save(buffer);
+        var bytes = buffer.ToArray();
+        var hash = Convert.ToHexString(SHA256.HashData(bytes));
+
+        Directory.CreateDirectory(_imageDir);
+        var path = Path.Combine(_imageDir, $"{DateTime.Now:yyyyMMdd-HHmmss-fff}.png");
+        File.WriteAllBytes(path, bytes);
+        _store.AddImage(path, hash);
     }
 }

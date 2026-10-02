@@ -11,6 +11,7 @@ public partial class SettingsWindow : FluentWindow
 {
     private readonly AppSettings _settings = App.Settings;
     private bool _capturing;
+    private CaptureTarget _captureTarget;
 
     public SettingsWindow()
     {
@@ -62,22 +63,37 @@ public partial class SettingsWindow : FluentWindow
         ClearClipboardButton.Click += (_, _) => App.ClipboardStore.Clear();
 
         HotkeyText.Text = Hotkey.Parse(_settings.Hotkey).ToString();
-        RecordHotkeyButton.Click += (_, _) => StartCapture();
-        ResetHotkeyButton.Click += (_, _) => ApplyHotkey(Hotkey.Default());
+        RecordHotkeyButton.Click += (_, _) => StartCapture(CaptureTarget.Launch);
+        ResetHotkeyButton.Click += (_, _) => ApplyHotkey(CaptureTarget.Launch, Hotkey.Default());
+
+        ClipHotkeyText.Text = Hotkey.Parse(_settings.ClipboardHotkey).ToString();
+        ClipRecordButton.Click += (_, _) => StartCapture(CaptureTarget.Clipboard);
+        ClipResetButton.Click += (_, _) => ApplyHotkey(CaptureTarget.Clipboard, Hotkey.DefaultClipboard());
     }
 
     // ---------- 热键录制 ----------
 
-    private void StartCapture()
+    private enum CaptureTarget { Launch, Clipboard }
+
+    // 控件在 XAML 中的类型：标签/提示为 System.Windows.Controls.TextBlock，按钮为 Wpf.Ui.Controls.Button
+    private System.Windows.Controls.TextBlock HotkeyLabelOf(CaptureTarget t) => t == CaptureTarget.Launch ? HotkeyText : ClipHotkeyText;
+    private Wpf.Ui.Controls.Button RecordButtonOf(CaptureTarget t) => t == CaptureTarget.Launch ? RecordHotkeyButton : ClipRecordButton;
+    private Wpf.Ui.Controls.Button ResetButtonOf(CaptureTarget t) => t == CaptureTarget.Launch ? ResetHotkeyButton : ClipResetButton;
+    private System.Windows.Controls.TextBlock IdleHintOf(CaptureTarget t) => t == CaptureTarget.Launch ? HotkeyIdleHint : ClipIdleHint;
+    private System.Windows.Controls.TextBlock ErrorHintOf(CaptureTarget t) => t == CaptureTarget.Launch ? HotkeyErrorHint : ClipErrorHint;
+
+    private void StartCapture(CaptureTarget target)
     {
         _capturing = true;
+        _captureTarget = target;
         // 挂起当前绑定，否则旧组合键会被系统拦截、无法重新录制同一键
-        ((App)Application.Current).SuspendHotkey();
-        HotkeyText.Text = "请按下新组合键…";
-        HotkeyIdleHint.Visibility = Visibility.Collapsed;
-        HotkeyErrorHint.Visibility = Visibility.Collapsed;
-        RecordHotkeyButton.Visibility = Visibility.Collapsed;
-        ResetHotkeyButton.Visibility = Visibility.Visible;
+        if (target == CaptureTarget.Clipboard) ((App)Application.Current).SuspendClipboardHotkey();
+        else ((App)Application.Current).SuspendHotkey();
+        HotkeyLabelOf(target).Text = "请按下新组合键…";
+        IdleHintOf(target).Visibility = Visibility.Collapsed;
+        ErrorHintOf(target).Visibility = Visibility.Collapsed;
+        RecordButtonOf(target).Visibility = Visibility.Collapsed;
+        ResetButtonOf(target).Visibility = Visibility.Visible;
         Activate();
     }
 
@@ -86,30 +102,36 @@ public partial class SettingsWindow : FluentWindow
     {
         if (!_capturing) return;
         _capturing = false;
-        ((App)Application.Current).ResumeHotkey();
-        RestoreCaptureUi();
+        if (_captureTarget == CaptureTarget.Clipboard) ((App)Application.Current).ResumeClipboardHotkey();
+        else ((App)Application.Current).ResumeHotkey();
+        RestoreCaptureUi(_captureTarget);
     }
 
-    private void RestoreCaptureUi()
+    private void RestoreCaptureUi(CaptureTarget target)
     {
-        HotkeyText.Text = Hotkey.Parse(_settings.Hotkey).ToString();
-        HotkeyIdleHint.Visibility = Visibility.Visible;
-        HotkeyErrorHint.Visibility = Visibility.Collapsed;
-        RecordHotkeyButton.Visibility = Visibility.Visible;
-        ResetHotkeyButton.Visibility = Visibility.Hidden;
+        var str = target == CaptureTarget.Clipboard
+            ? Hotkey.Parse(_settings.ClipboardHotkey).ToString()
+            : Hotkey.Parse(_settings.Hotkey).ToString();
+        HotkeyLabelOf(target).Text = str;
+        IdleHintOf(target).Visibility = Visibility.Visible;
+        ErrorHintOf(target).Visibility = Visibility.Collapsed;
+        RecordButtonOf(target).Visibility = Visibility.Visible;
+        ResetButtonOf(target).Visibility = Visibility.Hidden;
     }
 
-    private void ApplyHotkey(Hotkey hk)
+    private void ApplyHotkey(CaptureTarget target, Hotkey hk)
     {
-        if (((App)Application.Current).TryRebindHotkey(hk))
+        var app = (App)Application.Current;
+        bool ok = target == CaptureTarget.Clipboard ? app.TryRebindClipboardHotkey(hk) : app.TryRebindHotkey(hk);
+        if (ok)
         {
             _capturing = false; // 新键已生效，无需恢复旧绑定
-            RestoreCaptureUi();
+            RestoreCaptureUi(target);
             return;
         }
-        HotkeyIdleHint.Visibility = Visibility.Collapsed;
-        HotkeyErrorHint.Text = $"{hk} 注册失败：可能已被系统或其他程序占用，请换一组或按 Esc 取消";
-        HotkeyErrorHint.Visibility = Visibility.Visible;
+        IdleHintOf(target).Visibility = Visibility.Collapsed;
+        ErrorHintOf(target).Text = $"{hk} 注册失败：可能已被系统或其他程序占用，请换一组或按 Esc 取消";
+        ErrorHintOf(target).Visibility = Visibility.Visible;
     }
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
@@ -133,12 +155,12 @@ public partial class SettingsWindow : FluentWindow
         bool functionKey = key is >= Key.F1 and <= Key.F12;
         if (mods == ModifierKeys.None && !functionKey)
         {
-            HotkeyIdleHint.Visibility = Visibility.Collapsed;
-            HotkeyErrorHint.Text = "至少包含一个修饰键（Alt / Ctrl / Shift / Win），或直接用 F1–F12";
-            HotkeyErrorHint.Visibility = Visibility.Visible;
+            IdleHintOf(_captureTarget).Visibility = Visibility.Collapsed;
+            ErrorHintOf(_captureTarget).Text = "至少包含一个修饰键（Alt / Ctrl / Shift / Win），或直接用 F1–F12";
+            ErrorHintOf(_captureTarget).Visibility = Visibility.Visible;
             return;
         }
-        ApplyHotkey(new Hotkey(mods, key));
+        ApplyHotkey(_captureTarget, new Hotkey(mods, key));
     }
 
     private void SetAndSave(Action mutate, bool applyStartup = false)

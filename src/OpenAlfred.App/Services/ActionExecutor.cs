@@ -21,43 +21,56 @@ public sealed class ActionExecutor
 
     public ActionExecutor(ClipboardStore store) => _store = store;
 
-    public void Execute(QueryResult result, bool secondary)
+    /// <summary>执行动作；返回是否成功（用于表现层给出拷贝成功/失败反馈）。</summary>
+    public bool Execute(QueryResult result, bool secondary)
     {
         var action = secondary ? result.SecondaryAction : result.Action;
         var payload = secondary ? result.SecondaryPayload : result.Payload;
-        if (action == ResultActionKind.None || payload is null) return;
+        if (action == ResultActionKind.None || payload is null) return false;
 
         switch (action)
         {
             case ResultActionKind.CopyText:
-                Try(() =>
+                return Try(() =>
                 {
                     BeforeClipboardWrite?.Invoke();
                     Clipboard.SetDataObject(payload);
                 });
-                break;
 
             case ResultActionKind.OpenPath:
-                Try(() =>
+                return Try(() =>
                 {
                     Process.Start(new ProcessStartInfo(payload) { UseShellExecute = true });
                 });
-                break;
 
             case ResultActionKind.RevealInExplorer:
-                Try(() =>
+                return Try(() =>
                 {
                     var args = File.GetAttributes(payload).HasFlag(FileAttributes.Directory)
                         ? $"\"{payload}\""
                         : $"/select,\"{payload}\"";
                     Process.Start(new ProcessStartInfo("explorer.exe", args) { UseShellExecute = true });
                 });
-                break;
 
             case ResultActionKind.PasteClipboard:
                 PasteFromHistory(payload);
-                break;
+                return true;
+
+            case ResultActionKind.CopyClipboardEntry:
+                return CopyFromHistory(payload);
         }
+        return false;
+    }
+
+    /// <summary>把历史记录内容拷贝到剪贴板（不粘贴、不隐藏窗口）；成功返回 true。</summary>
+    private bool CopyFromHistory(string entryId)
+    {
+        var entry = _store.Find(entryId);
+        if (entry is null) return false;
+        BeforeClipboardWrite?.Invoke();
+        var ok = false;
+        Try(() => ok = WriteEntryToClipboard(entry));
+        return ok;
     }
 
     /// <summary>把历史记录写回剪贴板，然后把焦点还给原窗口并模拟 Ctrl+V。</summary>
@@ -67,21 +80,7 @@ public sealed class ActionExecutor
         if (entry is null) return;
 
         BeforeClipboardWrite?.Invoke();
-        if (entry.Kind == "image")
-        {
-            if (entry.ImagePath is null || !File.Exists(entry.ImagePath)) return;
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.UriSource = new Uri(entry.ImagePath);
-            image.EndInit();
-            image.Freeze();
-            Clipboard.SetImage(image);
-        }
-        else
-        {
-            Clipboard.SetDataObject(entry.Content);
-        }
+        if (!WriteEntryToClipboard(entry)) return;
 
         HideRequested?.Invoke();
 
@@ -100,11 +99,32 @@ public sealed class ActionExecutor
         }
     }
 
+    /// <summary>把一条记录写回系统剪贴板；成功返回 true。调用前应已置 IgnoreNextUpdate。</summary>
+    private bool WriteEntryToClipboard(ClipboardEntry entry)
+    {
+        if (entry.Kind == "image")
+        {
+            if (entry.ImagePath is null || !File.Exists(entry.ImagePath)) return false;
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.UriSource = new Uri(entry.ImagePath);
+            image.EndInit();
+            image.Freeze();
+            Clipboard.SetImage(image);
+        }
+        else
+        {
+            Clipboard.SetDataObject(entry.Content);
+        }
+        return true;
+    }
+
     public event Action? HideRequested;
 
-    private static void Try(Action action)
+    private static bool Try(Action action)
     {
-        try { action(); }
-        catch (Exception ex) { Debug.WriteLine(ex); }
+        try { action(); return true; }
+        catch (Exception ex) { Debug.WriteLine(ex); return false; }
     }
 }

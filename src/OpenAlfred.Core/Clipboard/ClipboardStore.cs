@@ -16,6 +16,12 @@ public sealed class ClipboardEntry
     /// <summary>图片 PNG 文件绝对路径（Kind=image 时有效）。</summary>
     [JsonPropertyName("imagePath")]
     public string? ImagePath { get; set; }
+    /// <summary>图片内容 SHA256 十六进制串，用于重复识别与计数（Kind=image 时有效）。</summary>
+    [JsonPropertyName("hash")]
+    public string? Hash { get; set; }
+    /// <summary>重复出现次数：同一内容被多次复制时累加，用于排序与展示（×n）。</summary>
+    [JsonPropertyName("count")]
+    public int Count { get; set; } = 1;
     [JsonPropertyName("time")]
     public DateTimeOffset Time { get; set; } = DateTimeOffset.Now;
 }
@@ -48,35 +54,68 @@ public sealed class ClipboardStore : IDisposable
         lock (_gate) return _entries.ToList();
     }
 
-    /// <summary>追加文本记录；与最近一条内容相同时忽略。</summary>
+    /// <summary>
+    /// 追加文本记录：若历史中已有相同文本，移动到最前、刷新时间并累加计数；否则新建（计数 1）。
+    /// </summary>
     public void AddText(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
         lock (_gate)
         {
-            if (_entries.Count > 0
-                && _entries[0].Kind == "text"
-                && string.Equals(_entries[0].Content, text, StringComparison.Ordinal))
-                return;
-            _entries.Insert(0, new ClipboardEntry { Kind = "text", Content = text });
+            var existing = _entries.FirstOrDefault(e => e.Kind == "text"
+                && string.Equals(e.Content, text, StringComparison.Ordinal));
+            if (existing is not null)
+            {
+                _entries.Remove(existing);
+                existing.Count++;
+                existing.Time = DateTimeOffset.Now;
+                _entries.Insert(0, existing);
+            }
+            else
+            {
+                _entries.Insert(0, new ClipboardEntry { Kind = "text", Content = text });
+            }
             Trim();
         }
         Save();
         HistoryChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>追加图片记录（PNG 已写入 imagePath）。</summary>
-    public void AddImage(string imagePath)
+    /// <summary>
+    /// 追加图片记录（PNG 已写入 imagePath）。
+    /// 传入 hash 时按内容去重：已有相同 hash 则合并计数并丢弃本次新文件；否则新建。
+    /// </summary>
+    public void AddImage(string imagePath, string? hash = null)
     {
+        bool ownsNewFile = true;
         lock (_gate)
         {
-            _entries.Insert(0, new ClipboardEntry
+            var existing = string.IsNullOrEmpty(hash)
+                ? null
+                : _entries.FirstOrDefault(e => e.Kind == "image" && e.Hash == hash);
+            if (existing is not null)
             {
-                Kind = "image",
-                Content = Path.GetFileName(imagePath),
-                ImagePath = imagePath,
-            });
+                _entries.Remove(existing);
+                existing.Count++;
+                existing.Time = DateTimeOffset.Now;
+                _entries.Insert(0, existing);
+                ownsNewFile = false; // 内容与已有记录相同，丢弃刚写入的临时文件
+            }
+            else
+            {
+                _entries.Insert(0, new ClipboardEntry
+                {
+                    Kind = "image",
+                    Content = Path.GetFileName(imagePath),
+                    ImagePath = imagePath,
+                    Hash = hash,
+                });
+            }
             Trim();
+        }
+        if (!ownsNewFile)
+        {
+            try { if (File.Exists(imagePath)) File.Delete(imagePath); } catch (IOException) { /* 尽力而为 */ }
         }
         Save();
         HistoryChanged?.Invoke(this, EventArgs.Empty);
@@ -131,6 +170,7 @@ public sealed class ClipboardStore : IDisposable
             .Select(e => (Entry: e, Score: FuzzyMatcher.Score(e.Content, query)))
             .Where(x => x.Score > 0)
             .OrderByDescending(x => x.Score)
+            .ThenByDescending(x => x.Entry.Count)
             .ThenByDescending(x => x.Entry.Time)
             .Take(limit)
             .Select(x => x.Entry)

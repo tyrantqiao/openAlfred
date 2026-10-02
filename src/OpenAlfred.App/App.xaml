@@ -13,6 +13,7 @@
             </ResourceDictionary.MergedDictionaries>
 
             <conv:NullToVisibilityConverter x:Key="StringToVisibilityConverter" />
+            <conv:PathToBitmapImageConverter x:Key="PathToImage" />
 
             <!-- 托盘图标：蓝底圆角 + 白色放大镜 -->
             <DrawingImage x:Key="TrayIcon">

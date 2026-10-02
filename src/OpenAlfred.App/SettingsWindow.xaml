@@ -57,6 +57,29 @@
         <TextBlock Text="剪贴板" FontSize="13" FontWeight="SemiBold" Margin="2,0,0,8"
                    Foreground="{DynamicResource OaTextSecondaryBrush}" />
         <CheckBox x:Name="ClipboardPauseBox" Content="暂停剪贴板历史记录" Margin="0,0,0,12" />
+
+        <!-- 剪贴板历史直达快捷键 -->
+        <TextBlock Text="剪贴板历史快捷键（一键打开）" FontSize="12" FontWeight="SemiBold" Margin="2,0,0,6"
+                   Foreground="{DynamicResource OaTextSecondaryBrush}" />
+        <DockPanel LastChildFill="True" Margin="0,0,0,4">
+            <ui:Button x:Name="ClipResetButton" Content="恢复默认" Appearance="Secondary"
+                       DockPanel.Dock="Right" Margin="8,0,0,0" Padding="10,5" Visibility="Hidden" />
+            <ui:Button x:Name="ClipRecordButton" Content="修改…" Appearance="Primary"
+                       DockPanel.Dock="Right" Padding="14,5" />
+            <Border Background="{DynamicResource OaFooterBrush}" CornerRadius="8"
+                    Padding="12,7" VerticalAlignment="Stretch">
+                <TextBlock x:Name="ClipHotkeyText" FontSize="14" FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+            </Border>
+        </DockPanel>
+        <Grid Margin="2,0,0,12">
+            <TextBlock x:Name="ClipIdleHint" FontSize="12"
+                       Foreground="{DynamicResource OaTextSecondaryBrush}"
+                       Text="按下后直接弹出剪贴板历史，输入关键词即可搜索" />
+            <TextBlock x:Name="ClipErrorHint" FontSize="12" Visibility="Collapsed"
+                       Foreground="#FF3B30" TextWrapping="Wrap" />
+        </Grid>
+
         <ui:Button x:Name="ClearClipboardButton" Content="清除剪贴板历史" Appearance="Secondary"
                    HorizontalAlignment="Left" Margin="0,0,0,18" />
 

@@ -163,28 +163,62 @@ public sealed class ClipboardProvider : IQueryProvider
 
     public Task<IReadOnlyList<QueryResult>> ExecuteAsync(QueryContext context, CancellationToken cancellationToken = default)
     {
-        var query = context.Keyword == "clip" ? context.Argument : context.Raw;
-        var entries = _store.Search(query, limit: 5);
+        var isClipMode = context.Keyword == "clip";
+        var query = isClipMode ? context.Argument : context.Raw;
+        // 直达剪贴板历史（clip 关键词）展示更多条目；无前缀兜底仍只取前几条
+        var entries = _store.Search(query, limit: isClipMode ? 50 : 5);
 
         List<QueryResult> results = new();
         foreach (var entry in entries)
         {
-            var preview = entry.Kind == "image"
-                ? entry.Content
-                : entry.Content.Replace('\r', ' ').Replace('\n', ' ');
-            if (preview.Length > 80) preview = preview[..80] + "…";
+            var score = string.IsNullOrEmpty(query)
+                ? 500 - results.Count
+                : FuzzyMatcher.Score(entry.Content, query) + Math.Min(entry.Count, 10) * 0.1;
+            var meta = RelativeTime.Format(entry.Time)
+                + (entry.Count > 1 ? $" · ×{entry.Count}" : "");
+
+            if (entry.Kind == "image")
+            {
+                results.Add(new QueryResult
+                {
+                    Title = entry.Content,
+                    Subtitle = "图片 · Enter 粘贴，Ctrl+Enter 拷贝",
+                    Meta = meta,
+                    Source = "clip",
+                    Action = ResultActionKind.PasteClipboard,
+                    Payload = entry.Id,
+                    SecondaryAction = ResultActionKind.CopyClipboardEntry,
+                    ImagePath = entry.ImagePath,
+                    HasThumbnail = entry.ImagePath is not null && System.IO.File.Exists(entry.ImagePath),
+                    Score = score,
+                });
+                continue;
+            }
+
+            // 文本：首行做标题，多余行拼接为多行预览
+            var lines = entry.Content.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            var title = lines[0];
+            if (title.Length > 120) title = title[..120] + "…";
+            string? preview = null;
+            if (lines.Length > 1)
+            {
+                var rest = string.Join("\n", lines.Skip(1).Take(3));
+                if (rest.Length > 300) rest = rest[..300] + "…";
+                if (lines.Length > 4) rest += "\n…";
+                preview = rest;
+            }
 
             results.Add(new QueryResult
             {
-                Title = preview,
-                Subtitle = entry.Kind == "image" ? "图片" : "文本",
-                Meta = RelativeTime.Format(entry.Time),
+                Title = string.IsNullOrEmpty(title) ? "（空行）" : title,
+                Subtitle = preview is null ? "文本 · Enter 粘贴，Ctrl+Enter 拷贝" : null,
+                Preview = preview,
+                Meta = meta,
                 Source = "clip",
                 Action = ResultActionKind.PasteClipboard,
                 Payload = entry.Id,
-                Score = string.IsNullOrEmpty(query)
-                    ? 500 - results.Count
-                    : FuzzyMatcher.Score(entry.Content, query),
+                SecondaryAction = ResultActionKind.CopyClipboardEntry,
+                Score = score,
             });
         }
         return Task.FromResult<IReadOnlyList<QueryResult>>(results);
@@ -354,7 +388,7 @@ public sealed class QueryRouter
 
         return all
             .OrderByDescending(r => r.Score)
-            .Take(8)
+            .Take(context.Keyword == "clip" ? 50 : 8)
             .ToList();
     }
 }

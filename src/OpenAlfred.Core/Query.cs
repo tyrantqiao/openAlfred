@@ -18,6 +18,8 @@ public enum ResultActionKind
     RevealInExplorer,
     /// <summary>把剪贴板记录（Payload = 记录 Id）写回并模拟粘贴。</summary>
     PasteClipboard,
+    /// <summary>把剪贴板记录（Payload = 记录 Id）的文本/图片内容拷贝到剪切板（不粘贴、不关窗）。</summary>
+    CopyClipboardEntry,
 }
 
 /// <summary>一条可展示的查询结果。</summary>
@@ -36,6 +38,12 @@ public sealed record QueryResult
     public string? SecondaryPayload { get; init; }
     /// <summary>错误提示行（红色小字），null 表示正常。</summary>
     public string? Error { get; init; }
+    /// <summary>多行预览正文（剪贴板历史等富展示行使用，允许换行）。</summary>
+    public string? Preview { get; init; }
+    /// <summary>缩略图绝对路径（剪贴板图片历史）；仅表现层使用，不影响动作。</summary>
+    public string? ImagePath { get; init; }
+    /// <summary>是否用缩略图代替左侧图标展示（图片历史）。</summary>
+    public bool HasThumbnail { get; init; }
     /// <summary>排序分，越大越靠前。</summary>
     public double Score { get; init; }
 }

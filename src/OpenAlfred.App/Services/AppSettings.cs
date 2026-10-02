@@ -30,6 +30,10 @@ public sealed class AppSettings
     [JsonPropertyName("hotkey")]
     public string Hotkey { get; set; } = Services.Hotkey.DefaultString;
 
+    /// <summary>一键打开剪贴板历史的全局热键；默认 Ctrl+Alt+V。</summary>
+    [JsonPropertyName("clipboardHotkey")]
+    public string ClipboardHotkey { get; set; } = Services.Hotkey.ClipboardDefaultString;
+
     /// <summary>最小化时收进系统托盘（常驻后台）；关闭则用系统最小化。</summary>
     [JsonPropertyName("minimizeToTray")]
     public bool MinimizeToTray { get; set; } = true;

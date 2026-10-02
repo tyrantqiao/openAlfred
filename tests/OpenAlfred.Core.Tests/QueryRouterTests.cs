@@ -86,6 +86,47 @@ public class QueryRouterTests
     }
 
     [Fact]
+    public async Task Clip_Mode_Exposes_Multiline_Preview_And_Copy_Secondary()
+    {
+        using var store = new ClipboardStore(NewTempPath());
+        store.AddText("第一行\n第二行\n第三行");
+        using var index = new FileIndex();
+        var router = BuildRouter(store, index);
+
+        var clip = Assert.Single(await router.RouteAsync("clip"), r => r.Source == "clip");
+        Assert.Equal("第一行", clip.Title);
+        Assert.NotNull(clip.Preview);
+        Assert.Contains("第二行", clip.Preview);
+        Assert.Equal(ResultActionKind.PasteClipboard, clip.Action);
+        Assert.Equal(ResultActionKind.CopyClipboardEntry, clip.SecondaryAction);
+    }
+
+    [Fact]
+    public async Task Clip_Image_Entry_Carries_Thumbnail()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"oa-img-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var img = Path.Combine(dir, "pic.png");
+            File.WriteAllBytes(img, [9, 8, 7]);
+            using var store = new ClipboardStore(NewTempPath());
+            store.AddImage(img, "H1");
+            using var index = new FileIndex();
+            var router = BuildRouter(store, index);
+
+            var clip = Assert.Single(await router.RouteAsync("clip"), r => r.Source == "clip");
+            Assert.True(clip.HasThumbnail);
+            Assert.Equal(img, clip.ImagePath);
+            Assert.Equal("pic.png", clip.Title);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [Fact]
     public void Parse_Extracts_Keyword_And_Argument()
     {
         var context = QueryRouter.Parse("file report");
@@ -125,12 +166,70 @@ public class ClipboardStoreTests : IDisposable
     }
 
     [Fact]
-    public void Duplicate_Consecutive_Text_Ignored()
+    public void Duplicate_Consecutive_Text_Counted_And_Merged()
     {
         using var store = new ClipboardStore(_tempFile);
         store.AddText("same");
         store.AddText("same");
-        Assert.Single(store.Snapshot());
+        var snap = store.Snapshot();
+        // 不再忽略重复，而是合并为一条并计数
+        Assert.Single(snap);
+        Assert.Equal(2, snap[0].Count);
+    }
+
+    [Fact]
+    public void Duplicate_Text_Moves_To_Front_With_Count()
+    {
+        using var store = new ClipboardStore(_tempFile);
+        store.AddText("a");
+        store.AddText("b");
+        store.AddText("a");
+        var snap = store.Snapshot();
+        Assert.Equal(2, snap.Count);
+        Assert.Equal("a", snap[0].Content);
+        Assert.Equal(2, snap[0].Count);
+    }
+
+    [Fact]
+    public void Duplicate_Image_By_Hash_Merges_Count_And_Discards_New_File()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"oa-img-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var first = Path.Combine(dir, "first.png");
+            var second = Path.Combine(dir, "second.png");
+            File.WriteAllBytes(first, [1, 2, 3]);
+            File.WriteAllBytes(second, [1, 2, 3]);
+
+            using var store = new ClipboardStore(_tempFile);
+            store.AddImage(first, "HASHX");
+            store.AddImage(second, "HASHX");
+
+            var snap = store.Snapshot();
+            Assert.Single(snap);
+            Assert.Equal(2, snap[0].Count);
+            Assert.Equal(first, snap[0].ImagePath);
+            Assert.False(File.Exists(second)); // 重复内容的新文件被丢弃
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch (IOException) { }
+        }
+    }
+
+    [Fact]
+    public void Search_Ranks_Higher_Count_First_On_Tie()
+    {
+        using var store = new ClipboardStore(_tempFile);
+        store.AddText("note alpha");   // 与下行等长，模糊分相同
+        store.AddText("note betax");
+        store.AddText("note betax");   // betax 计数 2
+
+        var hits = store.Search("note");
+        Assert.Equal(2, hits.Count);
+        // 同模糊分时，重复次数多的靠前
+        Assert.Contains("betax", hits[0].Content);
     }
 
     [Fact]

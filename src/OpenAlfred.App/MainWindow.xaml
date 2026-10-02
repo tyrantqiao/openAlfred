@@ -25,19 +25,28 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Width="38" Height="38" CornerRadius="10"
+                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
                         Background="{DynamicResource OaPillBrush}" Margin="0,0,14,0"
                         VerticalAlignment="Center">
-                    <ui:SymbolIcon x:Name="Icon" FontSize="20"
-                                   Foreground="{DynamicResource OaTextPrimaryBrush}"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Symbol="Search24" />
+                    <Grid>
+                        <ui:SymbolIcon x:Name="Icon" FontSize="20"
+                                       Foreground="{DynamicResource OaTextPrimaryBrush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Symbol="Search24" />
+                        <Image x:Name="Thumb" Width="40" Height="40"
+                               Stretch="UniformToFill" Visibility="Collapsed"
+                               Source="{Binding ImagePath, Converter={StaticResource PathToImage}}" />
+                    </Grid>
                 </Border>
 
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" MinWidth="0">
                     <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold"
                                Foreground="{DynamicResource OaTextPrimaryBrush}"
                                TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Preview}" FontSize="12.5" Margin="0,2,0,0"
+                               Foreground="{DynamicResource OaTextSecondaryBrush}"
+                               TextWrapping="Wrap" MaxHeight="54" TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding Preview, Converter={StaticResource StringToVisibilityConverter}}" />
                     <TextBlock Text="{Binding Subtitle}" FontSize="12.5" Margin="0,2,0,0"
                                Foreground="{DynamicResource OaTextSecondaryBrush}"
                                TextTrimming="CharacterEllipsis" MaxHeight="36"
@@ -54,6 +63,10 @@
             </Grid>
 
             <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding HasThumbnail}" Value="True">
+                    <Setter TargetName="Icon" Property="Visibility" Value="Collapsed" />
+                    <Setter TargetName="Thumb" Property="Visibility" Value="Visible" />
+                </DataTrigger>
                 <DataTrigger Binding="{Binding Source}" Value="calc">
                     <Setter TargetName="Icon" Property="Symbol" Value="Calculator24" />
                 </DataTrigger>
@@ -113,7 +126,6 @@
                             PlaceholderText="输入关键词或算式…"
                             CaretBrush="{DynamicResource OaAccentBrush}"
                             MaxLength="4000"
-                            KeyDown="SearchBox_KeyDown"
                             TextChanged="SearchBox_TextChanged" />
                 <!-- 最小化到托盘 -->
                 <ui:Button x:Name="MinButton" Grid.Column="2" Icon="ArrowMinimize24"
@@ -144,10 +156,16 @@
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListBoxItem">
-                                    <Border x:Name="Bd" CornerRadius="12" Background="Transparent"
-                                            Padding="{TemplateBinding Padding}">
-                                        <ContentPresenter />
-                                    </Border>
+                                    <Grid>
+                                        <!-- 拷贝成功时闪现的强调色底衬，独立于选中/悬停触发器 -->
+                                        <Border x:Name="CopyFlash" CornerRadius="12"
+                                                Background="{DynamicResource OaAccentBrush}"
+                                                Opacity="0" IsHitTestVisible="False" />
+                                        <Border x:Name="Bd" CornerRadius="12" Background="Transparent"
+                                                Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter />
+                                        </Border>
+                                    </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter TargetName="Bd" Property="Background"
