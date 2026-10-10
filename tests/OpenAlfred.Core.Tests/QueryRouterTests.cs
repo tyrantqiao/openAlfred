@@ -35,7 +35,8 @@ public class QueryRouterTests
         using var index = new FileIndex();
         var router = BuildRouter(store, index);
 
-        var results = await router.RouteAsync("time UTC+9");
+        var results = await router.RouteAsync(">time UTC+9");
+        Assert.NotEmpty(results);
         Assert.All(results, r => Assert.Equal("time", r.Source));
     }
 
@@ -46,7 +47,7 @@ public class QueryRouterTests
         using var index = new FileIndex();
         var router = BuildRouter(store, index);
 
-        var results = await router.RouteAsync("date");
+        var results = await router.RouteAsync(">date");
         Assert.Equal("time", results[0].Source);
     }
 
@@ -57,7 +58,7 @@ public class QueryRouterTests
         using var index = new FileIndex();
         var router = BuildRouter(store, index);
 
-        var results = await router.RouteAsync("""json {"a":1}""");
+        var results = await router.RouteAsync(""">json {"a":1}""");
         Assert.Equal("json", results[0].Source);
         Assert.Contains("合法", results[0].Title);
     }
@@ -93,7 +94,7 @@ public class QueryRouterTests
         using var index = new FileIndex();
         var router = BuildRouter(store, index);
 
-        var clip = Assert.Single(await router.RouteAsync("clip"), r => r.Source == "clip");
+        var clip = Assert.Single(await router.RouteAsync(">clip"), r => r.Source == "clip");
         Assert.Equal("第一行", clip.Title);
         Assert.NotNull(clip.Preview);
         Assert.Contains("第二行", clip.Preview);
@@ -115,7 +116,7 @@ public class QueryRouterTests
             using var index = new FileIndex();
             var router = BuildRouter(store, index);
 
-            var clip = Assert.Single(await router.RouteAsync("clip"), r => r.Source == "clip");
+            var clip = Assert.Single(await router.RouteAsync(">clip"), r => r.Source == "clip");
             Assert.True(clip.HasThumbnail);
             Assert.Equal(img, clip.ImagePath);
             Assert.Equal("pic.png", clip.Title);
@@ -129,16 +130,99 @@ public class QueryRouterTests
     [Fact]
     public void Parse_Extracts_Keyword_And_Argument()
     {
-        var context = QueryRouter.Parse("file report");
+        var context = QueryRouter.Parse(">file report");
         Assert.Equal("file", context.Keyword);
         Assert.Equal("report", context.Argument);
 
         var bare = QueryRouter.Parse("hello world");
         Assert.Equal("", bare.Keyword);
 
-        var keywordOnly = QueryRouter.Parse("clip");
+        var keywordOnly = QueryRouter.Parse(">clip");
         Assert.Equal("clip", keywordOnly.Keyword);
         Assert.Equal("", keywordOnly.Argument);
+    }
+
+    [Theory]
+    [InlineData(">clip", "clip", "")]
+    [InlineData("> clip", "clip", "")]
+    [InlineData("  > CLIP   hello world", "clip", "hello world")]
+    [InlineData(">app code", "app", "code")]
+    [InlineData("> file report", "file", "report")]
+    [InlineData(">json {}", "json", "{}")]
+    [InlineData("> time UTC+9", "time", "UTC+9")]
+    [InlineData(">date", "date", "")]
+    [InlineData(">	clip	hello", "clip", "hello")]
+    public void Parse_Command_Prefix(string input, string keyword, string argument)
+    {
+        var context = QueryRouter.Parse(input);
+        Assert.Equal(input, context.Raw);
+        Assert.Equal(keyword, context.Keyword);
+        Assert.Equal(argument, context.Argument);
+    }
+
+    [Theory]
+    [InlineData("app")]
+    [InlineData("clip")]
+    [InlineData("file")]
+    [InlineData("json")]
+    [InlineData("time")]
+    [InlineData("date")]
+    public async Task Bare_Keyword_Searches_Files(string keyword)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"oa-route-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var file = Path.Combine(dir, keyword + ".txt");
+            File.WriteAllText(file, "");
+            using var store = new ClipboardStore(NewTempPath());
+            using var index = new FileIndex();
+            var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            index.ProgressChanged += (_, progress) =>
+            {
+                if (progress == -1) ready.TrySetResult();
+            };
+            index.StartBuild([dir]);
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            var context = QueryRouter.Parse(keyword);
+            Assert.Equal("", context.Keyword);
+            Assert.Equal(keyword, context.Argument);
+            var results = await BuildRouter(store, index).RouteAsync(keyword);
+            Assert.Equal(file, Assert.Single(results).Payload);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(">")]
+    [InlineData("> ")]
+    [InlineData(">unknown")]
+    [InlineData(">clipboard")]
+    [InlineData("> clipnotes")]
+    public async Task Incomplete_Or_Unknown_Command_Does_Not_Search(string input)
+    {
+        using var store = new ClipboardStore(NewTempPath());
+        store.AddText(input);
+        using var index = new FileIndex();
+        Assert.Empty(await BuildRouter(store, index).RouteAsync(input));
+    }
+
+    [Theory]
+    [InlineData(">clip")]
+    [InlineData("> clip")]
+    [InlineData("> CLIP")]
+    public async Task Clip_Command_Returns_History_Without_Search_Results(string input)
+    {
+        using var store = new ClipboardStore(NewTempPath());
+        for (var i = 0; i < 60; i++) store.AddText($"item-{i}");
+        using var index = new FileIndex();
+        var results = await BuildRouter(store, index).RouteAsync(input);
+        Assert.Equal(50, results.Count);
+        Assert.All(results, result => Assert.Equal("clip", result.Source));
     }
 
     private static string NewTempPath() =>

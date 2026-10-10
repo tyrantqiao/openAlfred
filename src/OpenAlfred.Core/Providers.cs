@@ -332,11 +332,17 @@ public sealed class QueryRouter
     public static QueryContext Parse(string raw)
     {
         var trimmed = raw.TrimStart();
-        var spaceIndex = trimmed.IndexOf(' ');
-        var head = (spaceIndex < 0 ? trimmed : trimmed[..spaceIndex]).ToLowerInvariant();
+        if (!trimmed.StartsWith('>'))
+            return new QueryContext(raw, "", trimmed);
+
+        var command = trimmed[1..].TrimStart();
+        var spaceIndex = 0;
+        while (spaceIndex < command.Length && !char.IsWhiteSpace(command[spaceIndex]))
+            spaceIndex++;
+        var head = command[..spaceIndex].ToLowerInvariant();
 
         if (ReservedKeywords.Contains(head))
-            return new QueryContext(raw, head, spaceIndex < 0 ? "" : trimmed[(spaceIndex + 1)..].TrimStart());
+            return new QueryContext(raw, head, command[spaceIndex..].TrimStart());
 
         return new QueryContext(raw, "", trimmed);
     }
@@ -347,7 +353,7 @@ public sealed class QueryRouter
     public async Task<IReadOnlyList<QueryResult>> RouteAsync(string raw, CancellationToken cancellationToken = default)
     {
         var context = Parse(raw);
-        if (context.Raw.Trim().Length == 0)
+        if (context.Raw.Trim().Length == 0 || (context.Raw.TrimStart().StartsWith('>') && context.Keyword.Length == 0))
             return Array.Empty<QueryResult>();
 
         var participants = new List<(IQueryProvider Provider, int Priority)>();

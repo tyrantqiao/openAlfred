@@ -91,7 +91,7 @@ public class AppIndexTests : IDisposable
             new FileProvider(fileIndex),
         });
 
-        var results = await router.RouteAsync("app calc");
+        var results = await router.RouteAsync(">app calc");
         Assert.Equal("app", results[0].Source);
         Assert.Equal("calculator", results[0].Title);
         Assert.Equal(ResultActionKind.OpenPath, results[0].Action);

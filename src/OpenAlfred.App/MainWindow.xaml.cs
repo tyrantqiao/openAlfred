@@ -178,7 +178,7 @@ public partial class MainWindow : FluentWindow
         else ShowWindow();
     }
 
-    /// <summary>直达剪贴板历史：唤起窗口并预填 clip 关键词，列出全部历史；已在前台时收起。</summary>
+    /// <summary>直达剪贴板历史：唤起窗口并预填 >clip 命令，列出全部历史；已在前台时收起。</summary>
     public void ShowClipboardHistory()
     {
         if (IsVisible && IsActive && _clipboardMode)
@@ -187,9 +187,9 @@ public partial class MainWindow : FluentWindow
             return;
         }
         _clipboardMode = true;
-        // selectAll:false —— 不选中 “clip”，光标落在末尾，直接打字即过滤；↑↓ 由窗口级按键导航列表
+        // selectAll:false —— 不选中 “>clip”，光标落在末尾，直接打字即过滤；↑↓ 由窗口级按键导航列表
         ShowWindow(selectAll: false);
-        SearchBox.Text = "clip ";
+        SearchBox.Text = ">clip ";
         SearchBox.CaretIndex = SearchBox.Text.Length;
         SearchBox.Focus();
         _ = RunQueryAsync();
@@ -223,7 +223,7 @@ public partial class MainWindow : FluentWindow
     {
         Hide();
         ResultsList.ItemsSource = null;
-        // 复位模式与文本，避免下次普通唤起残留 "clip"
+        // 复位模式与文本，避免下次普通唤起残留 ">clip"
         _clipboardMode = false;
         SearchBox.Text = "";
     }
@@ -333,7 +333,7 @@ public partial class MainWindow : FluentWindow
         HintBar.Visibility = hasQuery ? Visibility.Collapsed : Visibility.Visible;
 
         // clip 直达模式：底部提示切换为剪贴板历史可用操作
-        FooterLeft.Text = hasQuery && text.TrimStart().StartsWith("clip")
+        FooterLeft.Text = hasQuery && QueryRouter.Parse(text).Keyword == "clip"
             ? "↑↓ 选择 · Enter 粘贴 · Ctrl+C 拷贝 · Ctrl+Backspace 删除"
             : "↑↓ 选择 · Enter 执行 · Tab 补全";
 
@@ -345,7 +345,7 @@ public partial class MainWindow : FluentWindow
 
         if (hasQuery && results.Count == 0)
         {
-            var emptyTitle = text.TrimStart().StartsWith("clip")
+            var emptyTitle = QueryRouter.Parse(text).Keyword == "clip"
                 ? "剪贴板历史为空 · 复制的内容会出现在这里"
                 : "没有匹配的结果";
             ResultsList.ItemsSource = new[]
@@ -521,11 +521,13 @@ public partial class MainWindow : FluentWindow
     private void CompleteKeyword()
     {
         var text = SearchBox.Text.TrimStart();
+        if (!text.StartsWith('>')) return;
+        text = text[1..].TrimStart();
         var match = QueryRouter.Keywords
-            .FirstOrDefault(k => k.StartsWith(text, StringComparison.OrdinalIgnoreCase) && k != text);
+            .FirstOrDefault(k => k.StartsWith(text, StringComparison.OrdinalIgnoreCase));
         if (match is not null)
         {
-            SearchBox.Text = match + " ";
+            SearchBox.Text = ">" + match + " ";
             SearchBox.CaretIndex = SearchBox.Text.Length;
         }
     }
@@ -553,11 +555,11 @@ public partial class MainWindow : FluentWindow
         (string keyword, string label)[] pills =
         [
             ("1+2", "直接输入算式即计算"),
-            ("app", "启动应用"),
-            ("clip", "剪贴板历史"),
-            ("file", "检索文件"),
-            ("json", "JSON 转换"),
-            ("time", "时间查询"),
+            (">app", "启动应用"),
+            (">clip", "剪贴板历史"),
+            (">file", "检索文件"),
+            (">json", "JSON 转换"),
+            (">time", "时间查询"),
         ];
 
         foreach (var (keyword, label) in pills)

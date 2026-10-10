@@ -10,7 +10,7 @@
     <AssemblyName>openAlfred</AssemblyName>
     <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <Description>Windows 版 Alfred 类启动器：计算器 / 剪贴板 / 文件检索 / JSON / 时间</Description>
   </PropertyGroup>
 

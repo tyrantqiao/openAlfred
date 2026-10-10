@@ -123,7 +123,7 @@
                             Background="Transparent" BorderThickness="0"
                             FontSize="21" Padding="0"
                             Foreground="{DynamicResource OaTextPrimaryBrush}"
-                            PlaceholderText="输入关键词或算式…"
+                            PlaceholderText="搜索应用、文件，或输入 >命令…"
                             CaretBrush="{DynamicResource OaAccentBrush}"
                             MaxLength="4000"
                             TextChanged="SearchBox_TextChanged" />
